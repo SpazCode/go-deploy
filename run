@@ -1,0 +1,6 @@
+#!/bin/bash
+go get gopkg.in/mgo.v2
+go install gopkg.in/mgo.v2
+go build deploy.go
+mv deploy _obj/
+./_obj/deploy
