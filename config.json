@@ -1,0 +1,4 @@
+{
+	"db_url": "localhost",
+	"db_database": "go-deploy"
+}

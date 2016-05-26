@@ -1,6 +1,9 @@
 #!/bin/bash
 go get gopkg.in/mgo.v2
 go install gopkg.in/mgo.v2
+go get golang.org/x/crypto/bcrypt
+go get github.com/gorilla/sessions
+go get github.com/julienschmidt/httprouter
 go build deploy.go
 mv deploy _obj/
 ./_obj/deploy
