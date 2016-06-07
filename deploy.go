@@ -25,6 +25,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 func main() {
+	fmt.Println("Server Started")
 	// Create a new Router
 	r := httprouter.New()
 	r.GET("/", rootHandler)
@@ -32,6 +33,7 @@ func main() {
 	// User Routes
 	uc := controllers.NewUserController(getSession())
 
+	r.GET("/user", uc.GetUsers)
 	r.GET("/user/:id", uc.GetUser)
 	r.POST("/user", uc.CreateUser)
 	r.DELETE("/user/:id", uc.RemoveUser) 

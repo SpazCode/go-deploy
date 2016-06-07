@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+    "time"
 	"encoding/json"
 	"net/http"
 	"../models"
@@ -27,6 +28,26 @@ type (
 
 func NewUserController(s *mgo.Session) *UserController {  
     return &UserController{s}
+}
+
+// GetUsers retrieves all users
+func (uc UserController) GetUsers(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+    // Create user array
+    us := []models.User{}
+    // Fetch users
+    if err := uc.session.DB("go-deploy").C("users").Find(nil).All(&us)
+    err != nil {
+        w.WriteHeader(404)
+        return
+    }
+
+    // Marshal provided interface into JSON structure
+    uj, _ := json.Marshal(us)
+
+    // Write content-type, statuscode, payload
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(200)
+    fmt.Fprintf(w, "%s", uj)
 }
 
 // GetUser retrieves an individual user resource
@@ -69,17 +90,34 @@ func (uc UserController) CreateUser(w http.ResponseWriter, r *http.Request, p ht
     // Populate the user data
     json.NewDecoder(r.Body).Decode(&u)
 
+    err := uc.session.DB("go-deploy").C("users").Find(bson.M{"username": u.Username}).One(&u)
+    if err == nil {
+        w.WriteHeader(409)
+        fmt.Fprintf(w, "This username already exists")
+        return
+    }
+
+    err = uc.session.DB("go-deploy").C("users").Find(bson.M{"email": u.Email}).One(&u)
+    if err == nil {
+        w.WriteHeader(409)
+        fmt.Fprintf(w, "This email already exists")
+        return
+    }
+
     // Add an Id
     u.Id = bson.NewObjectId()
 
-
     // Set the password
     u.SetPassword()
+    // Set the Created and Updated values
+    u.Created = time.Now()
+    u.Updated = time.Now()
+    u.LastLogin = time.Now()
 
     // Write the user to mongo
     uc.session.DB("go-deploy").C("users").Insert(u)
 
-    // Marshal provided interface into JSON structure
+    // Marshal provided interface into JSON structure    
     uj, _ := json.Marshal(u)
 
     // Write content-type, statuscode, payload
@@ -130,18 +168,17 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
         return
     }
 
-    print(l.Password)
-
     // Compare the user 
-    err = bcrypt.CompareHashAndPassword(u.Password_Hash, []byte(l.Password))
-    fmt.Println(err)
+    err = bcrypt.CompareHashAndPassword([]byte(u.Password_Hash), []byte(l.Password))
     if err != nil {
+        fmt.Println(err)
         w.WriteHeader(401)
         fmt.Fprintf(w, "Passwords do not match")
         return
     }
 
-    sess, err := store.Get(req, "go-deploy")
+    var store = sessions.NewCookieStore([]byte("something-very-secret"))
+    sess, err := store.Get(r, "go-deploy")
     if err != nil {
         http.Error(w, err.Error(), 500)
         return
