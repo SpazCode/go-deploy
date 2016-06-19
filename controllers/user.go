@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
     "time"
+    "bytes"
 	"encoding/json"
 	"net/http"
 	"../models"
@@ -16,6 +17,7 @@ import (
 type (
 	UserController struct {
 		session *mgo.Session
+        store *sessions.CookieStore
 	}
 )
 
@@ -26,8 +28,8 @@ type (
     }
 )
 
-func NewUserController(s *mgo.Session) *UserController {  
-    return &UserController{s}
+func NewUserController(s *mgo.Session, st *sessions.CookieStore) *UserController {
+    return &UserController{s, st}
 }
 
 // GetUsers retrieves all users
@@ -126,6 +128,42 @@ func (uc UserController) CreateUser(w http.ResponseWriter, r *http.Request, p ht
     fmt.Fprintf(w, "%s", uj)
 }
 
+func (uc UserController) UpdateUser(w http.ResponseWriter, r *http.Request, p httprouter.Params) {  
+    // User Object for the body
+    u := models.User{}
+
+    // Get the user's id from the parameters
+    id := p.ByName("id")
+
+    // Populae user data that we want to update
+    json.NewDecoder(r.Body).Decode(&u)
+
+    if !bson.IsObjectIdHex(id) {
+        w.WriteHeader(404)
+        fmt.Fprintf(w, "User ID is invalid")
+        return
+    }
+
+    // Update the updated timestamp
+    u.Updated = time.Now()
+
+    // Save the updated user object to the db
+    err := uc.session.DB("go-deploy").C("users").UpdateId(id, u)
+    if err != nil {
+        w.WriteHeader(400)
+        fmt.Fprintf(w, "Error updating the User")
+        return
+    }
+
+    // Marshal provided interface into JSON structure
+    uj, _ := json.Marshal(u)
+
+    // Write content-type, statuscode, payload
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(201)
+    fmt.Fprintf(w, "%s", uj)
+}
+
 // RemoveUser removes an existing user resource
 func (uc UserController) RemoveUser(w http.ResponseWriter, r *http.Request, p httprouter.Params) {  
    	
@@ -177,8 +215,7 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
         return
     }
 
-    var store = sessions.NewCookieStore([]byte("something-very-secret"))
-    sess, err := store.Get(r, "go-deploy")
+    sess, err := uc.store.Get(r, "go-deploy")
     if err != nil {
         http.Error(w, err.Error(), 500)
         return
@@ -196,4 +233,8 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(200)
     fmt.Fprintf(w, "%s", uj)
+    var buffer bytes.Buffer
+    buffer.WriteString(u.Id.String())
+    buffer.WriteString(" Logged In")
+    fmt.Println(buffer.String())
 }

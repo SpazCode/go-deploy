@@ -1,11 +1,13 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"gopkg.in/mgo.v2"
 	"net/http"
 	"github.com/julienschmidt/httprouter"
 	"./controllers"
+	"github.com/gorilla/sessions"
 )
 
 // Database handlers
@@ -30,11 +32,15 @@ func main() {
 	r := httprouter.New()
 	r.GET("/", rootHandler)
 
+	store := sessions.NewCookieStore([]byte(os.Getenv("GODEPLOYSESSION")))
+	mongo := getSession()
+
 	// User Routes
-	uc := controllers.NewUserController(getSession())
+	uc := controllers.NewUserController(mongo, store)
 
 	r.GET("/user", uc.GetUsers)
 	r.GET("/user/:id", uc.GetUser)
+	r.PUT("/user/:id", uc.UpdateUser)
 	r.POST("/user", uc.CreateUser)
 	r.DELETE("/user/:id", uc.RemoveUser) 
 	r.POST("/login", uc.Login)
