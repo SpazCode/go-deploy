@@ -147,6 +147,10 @@ func (uc UserController) UpdateUser(w http.ResponseWriter, r *http.Request, p ht
     // Update the updated timestamp
     u.Updated = time.Now()
 
+    if len(u.Password) > 0 {
+        u.SetPassword()
+    }
+
     // Save the updated user object to the db
     err := uc.session.DB("go-deploy").C("users").UpdateId(id, u)
     if err != nil {
@@ -215,7 +219,7 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
         return
     }
 
-    sess, err := uc.store.Get(r, "go-deploy")
+    sess, err := uc.store.Get(r, "GODEPLOYSESSION")
     if err != nil {
         http.Error(w, err.Error(), 500)
         return
@@ -223,7 +227,7 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
 
     // Put the user into the session
     sess.Values["logged_in"] = true
-    sess.Values["user_id"] = u.Id
+    sess.Values["user_id"] = u.Id.Hex()
     sess.Save(r, w)
 
     // Marshal provided interface into JSON structure
@@ -237,4 +241,19 @@ func (uc UserController) Login(w http.ResponseWriter, r *http.Request, p httprou
     buffer.WriteString(u.Id.String())
     buffer.WriteString(" Logged In")
     fmt.Println(buffer.String())
+}
+
+
+// Logout clears the user session 
+func (uc UserController) Logout(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+    sess, err := uc.store.Get(r, "GODEPLOYSESSION")
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+
+    // Put the user into the session
+    sess.Values["logged_in"] = false
+    sess.Values["user_id"] = ""
+    sess.Save(r, w)
 }

@@ -44,6 +44,7 @@ func main() {
 	r.POST("/user", uc.CreateUser)
 	r.DELETE("/user/:id", uc.RemoveUser) 
 	r.POST("/login", uc.Login)
+	r.GET("/logout", uc.Logout)
 	// Listen for the port with this router
 	http.ListenAndServe(":9000", r)
 }
